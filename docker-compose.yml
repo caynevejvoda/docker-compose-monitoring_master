@@ -1,0 +1,63 @@
+version: "3.8"
+
+
+
+services:
+  node_exporter:
+    image: prom/node-exporter
+    container_name: node-exporter
+    command:
+      - "--path.rootfs=/host"
+    volumes:
+      - "/:/host:ro,rslave"
+    pid: host
+    restart: always
+    networks:
+      - monitoring
+
+
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - "prometheus/prometheus.yml:/etc/prometheus/prometheus.yml"
+    restart: always
+    networks:
+      - monitoring
+
+
+
+  grafana:
+    restart: always
+    image: grafana/grafana
+    container_name: grafana
+    user: "1000"
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_default"
+      - "traefik.http.routers.monitoring.rule=Host(`${MONITORING_DOMAIN}`)"
+      - "traefik.http.routers.monitoring.entrypoints=websecure"
+      - "traefik.http.routers.monitoring.tls.certresolver=${TLS_RESOLVER}"
+      - "traefik.http.routers.monitoring.middlewares=monitoring"
+      - "traefik.http.middlewares.monitoring.ipwhitelist.sourcerange=${IPWHITELIST}"
+    volumes:
+      - grafana:/var/lib/grafana
+    networks:
+      - proxy
+      - monitoring
+
+
+
+volumes:
+  grafana:
+  prometheus:
+
+
+networks:
+  monitoring:
+    name: monitoring_default
+  proxy:
+    name: traefik_default
